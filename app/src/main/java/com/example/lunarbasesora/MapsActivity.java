@@ -1,0 +1,431 @@
+package com.example.lunarbasesora;
+
+import android.app.ProgressDialog;
+import android.app.Service;
+import android.location.Address;
+import android.location.Geocoder;
+import android.location.Location;
+import android.location.LocationManager;
+import android.location.LocationListener;
+import android.location.LocationProvider;
+import android.os.AsyncTask;
+import android.support.v4.app.FragmentActivity;
+import android.os.Bundle;
+import android.graphics.Color;
+import android.text.method.LinkMovementMethod;
+
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.TileOverlay;
+import com.google.android.gms.maps.model.TileOverlayOptions;
+import com.google.maps.android.heatmaps.Gradient;
+import com.google.maps.android.heatmaps.HeatmapTileProvider;
+import com.google.maps.android.heatmaps.WeightedLatLng;
+
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
+import org.jsoup.nodes.Element;
+
+import java.util.ArrayList;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+
+public class MapsActivity extends FragmentActivity implements LocationListener{
+    // そらまめメインURL
+    private static final String SORABASEURL="http://soramame.taiki.go.jp/";
+    private static final String SORASUBURL ="MstItiran.php";
+    private static final String SORADATAURL = "DataList.php?MstCode=";
+    // 指定都道府県の測定局一覧取得
+    private static final String SORAPREFURL ="MstItiranFrame.php?Pref=";
+
+    //    private static final String TAG = MapsActivity.class.getSimpleName();
+    // 更新時間(目安)
+    private static final int LOCATION_UPDATE_MIN_TIME = 1000;
+    // 更新距離(目安)
+    private static final int LOCATION_UPDATE_MIN_DISTANCE = 100;
+
+    private LocationManager mLocationManager;
+    private GoogleMap mMap; // Might be null if Google Play services APK is not available.
+    private LatLng mHome = null;
+
+    /**
+     * Alternative radius for convolution
+     */
+    private static final int ALT_HEATMAP_RADIUS = 10;
+
+    /**
+     * Alternative opacity of heatmap overlay
+     */
+    private static final double ALT_HEATMAP_OPACITY = 0.4;
+
+    /**
+     * Alternative heatmap gradient (blue -> red)
+     * Copied from Javascript version
+     */
+    private static final int[] ALT_HEATMAP_GRADIENT_COLORS = {
+            Color.argb(0, 0, 255, 255),// transparent
+            Color.argb(255 / 3 * 2, 0, 255, 255),
+            Color.rgb(0x8B, 0xC3, 0x4A),
+            Color.rgb(0xff, 0xEB, 0x38),
+            Color.rgb(0xFF, 0x98, 0),
+            Color.rgb(255, 0, 0)
+    };
+
+    public static final float[] ALT_HEATMAP_GRADIENT_START_POINTS = {
+            0.0f, 0.20f, 0.40f, 0.60f, 0.8f, 1.0f
+    };
+
+    public static final Gradient ALT_HEATMAP_GRADIENT = new Gradient(ALT_HEATMAP_GRADIENT_COLORS,
+            ALT_HEATMAP_GRADIENT_START_POINTS);
+
+    private HeatmapTileProvider mProvider;
+    private TileOverlay mOverlay;
+
+    private boolean mDefaultGradient = true;
+    private boolean mDefaultRadius = true;
+    private boolean mDefaultOpacity = true;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_maps);
+
+        mLocationManager = (LocationManager)this.getSystemService(Service.LOCATION_SERVICE);
+        requestLocationUpdates();
+        setUpMapIfNeeded();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        setUpMapIfNeeded();
+    }
+    // Called when the location has changed.
+    @Override
+    public void onLocationChanged(Location location) {
+//        Log.e(TAG, "onLocationChanged.");
+//        showLocation(location);
+    }
+
+    // Called when the provider status changed.
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+//        Log.e(TAG, "onStatusChanged.");
+        switch (status) {
+            case LocationProvider.OUT_OF_SERVICE:
+                // if the provider is out of service, and this is not expected to change in the near future.
+//                String outOfServiceMessage = provider +"�����O�ɂȂ��Ă��Ď擾�ł��܂���B";
+//                showMessage(outOfServiceMessage);
+                break;
+            case LocationProvider.TEMPORARILY_UNAVAILABLE:
+                // if the provider is temporarily unavailable but is expected to be available shortly.
+//                String temporarilyUnavailableMessage = "�ꎞ�I��" + provider + "�����p�ł��܂���B�����������炷���ɗ��p�ł���悤�ɂȂ邩���ł��B";
+//                showMessage(temporarilyUnavailableMessage);
+                break;
+            case LocationProvider.AVAILABLE:
+                // if the provider is currently available.
+                if (provider.equals(LocationManager.NETWORK_PROVIDER)) {
+//                    String availableMessage = provider + "�����p�\�ɂȂ�܂����B";
+//                    showMessage(availableMessage);
+                    requestLocationUpdates();
+                }
+                break;
+        }
+    }
+
+    // Called when the provider is enabled by the user.
+    @Override
+    public void onProviderEnabled(String provider) {
+//        Log.e(TAG, "onProviderEnabled.");
+//        String message = provider + "���L��ɂȂ�܂����B";
+//        showMessage(message);
+        if (provider.equals(LocationManager.NETWORK_PROVIDER)) {
+            requestLocationUpdates();
+        }
+    }
+
+    // Called when the provider is disabled by the user.
+    @Override
+    public void onProviderDisabled(String provider) {
+//        Log.e(TAG, "onProviderDisabled.");
+        if (provider.equals(LocationManager.NETWORK_PROVIDER)) {
+//            String message = provider + "������ɂȂ��Ă��܂��܂����B";
+//            showMessage(message);
+        }
+    }
+
+    private void requestLocationUpdates() {
+//        Log.e(TAG, "requestLocationUpdates()");
+        boolean isNetworkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        if (isNetworkEnabled) {
+            mLocationManager.requestLocationUpdates(
+                    LocationManager.NETWORK_PROVIDER,
+                    LOCATION_UPDATE_MIN_TIME,
+                    LOCATION_UPDATE_MIN_DISTANCE,
+                    this);
+            Location location = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            if (location != null) {
+                // 現在地取得
+                mHome = new LatLng(location.getLatitude(), location.getLongitude());
+                try {
+                    // 現在地の住所取得（都道府県名）
+                    // Address.getAdminArea()にて都道府県名を取得できる
+                    Geocoder geo = new Geocoder(this, Locale.JAPAN);
+                    List<Address> address = geo.getFromLocation(mHome.latitude, mHome.longitude, 1);
+                    String strPref = address.get(0).getAdminArea();
+
+                    // 都道府県名にてそらまめより、測定局リストを取得する
+                    new Pref().execute(strPref);
+                }
+                catch(IOException e) {
+
+                }
+
+//                showLocation(location);
+            }
+        } else {
+//            String message = "Network������ɂȂ��Ă��܂��B";
+//            showMessage(message);
+        }
+    }
+
+//    private void showLocation(Location location) {
+//        double longitude = location.getLongitude();
+//        double latitude = location.getLatitude();
+//        long time = location.getTime();
+//        Date date = new Date(time);
+//        DateFormat formatter = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss:SSS");
+//        String dateFormatted = formatter.format(date);
+//        TextView longitudeTextView = (TextView)findViewById(R.id.longitude);
+//        longitudeTextView.setText("Longitude : " + String.valueOf(longitude));
+//        TextView latitudeTextView = (TextView)findViewById(R.id.latitude);
+//        latitudeTextView.setText("Latitude : " + String.valueOf(latitude));
+//        TextView geoTimeTextView = (TextView)findViewById(R.id.geo_time);
+//        geoTimeTextView.setText("�擾���� : " + dateFormatted);
+//    }
+
+//    private void showMessage(String message) {
+//        TextView textView = (TextView)findViewById(R.id.message);
+//        textView.setText(message);
+//    }
+
+
+    /**
+     * Sets up the map if it is possible to do so (i.e., the Google Play services APK is correctly
+     * installed) and the map has not already been instantiated.. This will ensure that we only ever
+     * call {@link #setUpMap()} once when {@link #mMap} is not null.
+     * <p/>
+     * If it isn't installed {@link SupportMapFragment} (and
+     * {@link com.google.android.gms.maps.MapView MapView}) will show a prompt for the user to
+     * install/update the Google Play services APK on their device.
+     * <p/>
+     * A user can return to this FragmentActivity after following the prompt and correctly
+     * installing/updating/enabling the Google Play services. Since the FragmentActivity may not
+     * have been completely destroyed during this process (it is likely that it would only be
+     * stopped or paused), {@link #onCreate(Bundle)} may not be called again so we should call this
+     * method in {@link #onResume()} to guarantee that it will be called.
+     */
+    private void setUpMapIfNeeded() {
+        // Do a null check to confirm that we have not already instantiated the map.
+        if (mMap == null) {
+            // Try to obtain the map from the SupportMapFragment.
+            mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
+                    .getMap();
+            // Check if we were successful in obtaining the map.
+            if (mMap != null) {
+                setUpMap();
+            }
+        }
+    }
+
+    //LatLng mStation;
+    /**
+     * This is where we can add markers or lines, add listeners or move the camera. In this case, we
+     * just add a marker near Africa.
+     * <p/>
+     * This should only be called once and when we are sure that {@link #mMap} is not null.
+     */
+    private void setUpMap() {
+//        try {
+//            Geocoder geo = new Geocoder(this, Locale.JAPAN);
+//            List<Address> address = geo.getFromLocationName("�k��B�s�ᏼ��厚���ۂT�Ԓn", 1);
+//
+//            mStation = new LatLng(address.get(0).getLatitude(), address.get(0).getLongitude());
+
+        mMap.setMyLocationEnabled(true);
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mHome, 11));
+
+        mMap.addMarker(new MarkerOptions().position(mHome).title("I'm Here!"));
+//            mMap.addMarker(new MarkerOptions().position(mStation).title(m_strInfo));
+//        }
+//        catch (IOException e)
+//        {
+//            return;
+//        }
+    }
+
+    // 都道府県
+    private class Pref extends AsyncTask<String, Void, Void>
+    {
+        int m_nPref = 0;
+        ArrayList<Soramame> mList;
+        private ProgressDialog mProgDialog;
+
+        @Override
+        protected void onPreExecute()
+        {
+            super.onPreExecute();
+            if(mProgDialog == null){
+                mProgDialog = new ProgressDialog(MapsActivity.this);
+                mProgDialog.setTitle("測定局データ");
+                mProgDialog.setMessage("ロード中・・・");
+                mProgDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+                mProgDialog.show();
+            }
+        }
+
+        @Override
+        protected Void doInBackground(String... params)
+        {
+            try
+            {
+                String url = String.format("%s%s", SORABASEURL, SORASUBURL);
+                Document doc = Jsoup.connect(url).get();
+                // 最新（日時）取得
+                String strSaisin = "";
+                Elements tags = doc.getElementsByTag("input");
+                for(Element ele: tags)
+                {
+                    if( ele.attr("name").equalsIgnoreCase("Saisin"))
+                    {
+                        strSaisin = ele.attr("value");
+                        break;
+                    }
+                }
+
+                Elements elements = doc.getElementsByTag("option");
+//                ArrayList<String> prefList = new ArrayList<String>();
+                for( Element element : elements) {
+                    if (new Integer(element.attr("value")) != 0) {
+                        if(element.text().equalsIgnoreCase( params[0] ))
+                        {
+                            m_nPref = Integer.parseInt(element.attr("value"));
+
+                            url = String.format("%s%s%d", SORABASEURL, SORAPREFURL, m_nPref);
+                            doc = Jsoup.connect(url).get();
+                            Elements prefs = doc.getElementsByAttributeValue("name", "Hyou");
+                            for( Element pref : prefs)
+                            {
+                                if( pref.hasAttr("src")) {
+                                    url = pref.attr("src");
+                                    String soraurl = SORABASEURL + url;
+
+                                    Document sora = Jsoup.connect(soraurl).get();
+                                    Element body = sora.body();
+                                    Elements tables = body.getElementsByTag("tr");
+                                    url = "";
+                                    Integer cnt = 0;
+                                    if(mList != null) {
+                                        mList.clear();
+                                    }
+                                    mList = new ArrayList<Soramame>();
+
+                                    for( Element ta : tables) {
+                                        if( cnt++ > 0) {
+                                            Elements data = ta.getElementsByTag("td");
+                                            String kyoku = data.get(13).text();
+                                            // 最後のデータが空なので
+                                            if(kyoku.length() < 1)
+                                            {
+                                                break;
+                                            }
+                                            int nCode = kyoku.codePointAt(0);
+                                            // PM2.5測定局のみ
+                                            if( nCode == 9675 ) {
+                                                Soramame mame = new Soramame(new Integer(data.get(0).text()), data.get(1).text(), data.get(2).text());
+                                                mame.setSaisin(strSaisin);
+
+                                                Geocoder geo = new Geocoder(MapsActivity.this, Locale.JAPAN);
+                                                List<Address> address = geo.getFromLocationName(mame.getAddress(), 1);
+                                                // 住所から緯度経度が取得できない場合があった
+                                                if(address.size() > 0) {
+
+                                                    LatLng station = new LatLng(address.get(0).getLatitude(), address.get(0).getLongitude());
+                                                    mame.setPosition(station);
+
+                                                    float[] results = new float[1];
+                                                    Location.distanceBetween(mHome.latitude, mHome.longitude, station.latitude, station.longitude, results);
+                                                    if( results[0] < 30000) {
+                                                        // 該当測定局データを取得
+                                                        url = String.format("%s%s%d", SORABASEURL, SORADATAURL, mame.getMstCode());
+                                                        Document sta = Jsoup.connect(url).get();
+                                                        Elements datas = sta.getElementsByAttributeValue("name", "Hyou");
+                                                        for( Element dat : datas) {
+                                                            if (dat.hasAttr("src")) {
+                                                                url = dat.attr("src");
+
+                                                                sta = Jsoup.connect(SORABASEURL + url).get();
+                                                                Element DataListHyou = sta.body();
+                                                                Elements trs = DataListHyou.getElementsByTag("tr");
+                                                                Elements tds = trs.get(1).getElementsByTag("td");
+
+                                                                mame.setData(tds.get(0).text(), tds.get(1).text(), tds.get(2).text(), tds.get(3).text(), tds.get(14).text());
+
+                                                                mList.add(mame);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            catch(IOException e)
+            {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result)
+        {
+            Iterator<Soramame> ite = mList.iterator();
+            Soramame sora;
+             ArrayList<WeightedLatLng> aList = new ArrayList<WeightedLatLng>();
+             while (ite.hasNext()) {
+                 sora = ite.next();
+                 WeightedLatLng weight = new WeightedLatLng( sora.getPosition(), sora.getData(0).getPM25());
+                 aList.add(weight);
+                mMap.addMarker(new MarkerOptions().position(sora.getPosition()).title(sora.getMstName()).snippet(sora.getDataString(0)));
+            }
+            // Check if need to instantiate (avoid setData etc twice)
+            if (mProvider == null) {
+                mProvider = new HeatmapTileProvider.Builder().weightedData(aList).build();
+                mProvider.setRadius(50);
+                mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
+                // Render links
+//                attribution.setMovementMethod(LinkMovementMethod.getInstance());
+            } else {
+                mProvider.setWeightedData(aList);
+                mOverlay.clearTileCache();
+            }
+
+            mList.clear();
+            mProgDialog.dismiss();
+        }
+    }
+
+}
