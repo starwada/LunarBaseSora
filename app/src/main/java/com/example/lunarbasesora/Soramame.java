@@ -62,11 +62,11 @@ public class Soramame {
 
         SoramameData(String strYear, String strMonth, String strDay, String strHour, String strValue)
         {
-            m_dDate = new Date(new Integer(strYear), new Integer(strMonth),
-                    new Integer(strDay), new Integer(strHour), new Integer(0));
+            m_dDate = new Date(Integer.valueOf(strYear), Integer.valueOf(strMonth),
+                    Integer.valueOf(strDay), Integer.valueOf(strHour), 0);
             // 未計測の場合、"-"が出力される。
-            if( strValue.equalsIgnoreCase("-") ){ m_nPM25 = -100 ; }
-            else{ m_nPM25 = new Integer(strValue); }
+            if( strValue.codePointAt(0) == 12288 || strValue.equalsIgnoreCase("-") ){ m_nPM25 = -100 ; }
+            else{ m_nPM25 = Integer.valueOf(strValue); }
         }
 
         public Date getDate()
@@ -80,7 +80,7 @@ public class Soramame {
         }
         public  Integer getPM25()
         {
-            return m_nPM25;
+            return (m_nPM25 < 0 ? 1 : m_nPM25);
         }
         public String getPM25String(){ return String.format("%s",(m_nPM25 < 0 ? "未計測" : m_nPM25.toString()));}
 
@@ -91,8 +91,7 @@ public class Soramame {
 
         public String Format()
         {
-            String strFormat = String.format("%s:%s", getDateString(), getPM25String()) ;
-            return strFormat ;
+            return String.format("%s:%s", getDateString(), getPM25String()) ;
         }
     }
 

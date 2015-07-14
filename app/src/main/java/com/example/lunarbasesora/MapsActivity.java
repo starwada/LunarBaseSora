@@ -55,8 +55,8 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
 
     private LocationManager mLocationManager;
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
-
-    private LatLng mHome = null;        // 現在地（保存する）
+    private  String m_strCurrentPref;
+    private LatLng mHome = null;
 
     /**
      * Alternative radius for convolution
@@ -94,29 +94,14 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
     private boolean mDefaultGradient = true;
     private boolean mDefaultRadius = true;
     private boolean mDefaultOpacity = true;
-
-    // 現在地
-    private void getHome()
-    {
-        float fOrig = 0;
-        SharedPreferences sharePref = this.getPreferences(Context.MODE_PRIVATE);
-        mHome = null;
-        mHome = new LatLng( sharePref.getFloat("HomeLat", fOrig), sharePref.getFloat("HomeLng", fOrig));
-    }
-
-    private void setHome()
-    {
-        SharedPreferences sharePref = this.getPreferences(Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharePref.edit();
-        editor.putFloat("HomeLat", ((float) mHome.latitude));
-        editor.putFloat("HomeLng", ((float)mHome.longitude));
-        editor.commit();
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        // 都道府県インデックスを取得
+        SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
+        m_strCurrentPref = sharedPref.getString("CurrentPref", "");
 
         mLocationManager = (LocationManager)this.getSystemService(Service.LOCATION_SERVICE);
         requestLocationUpdates();
@@ -128,6 +113,19 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
         super.onResume();
         setUpMapIfNeeded();
     }
+
+    @Override
+    public void onPause()
+    {
+        // 都道府県インデックスを保存する
+        SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putString("CurrentPref", m_strCurrentPref);
+        editor.commit();
+
+        super.onPause();
+    }
+
     // Called when the location has changed.
     @Override
     public void onLocationChanged(Location location) {
@@ -203,7 +201,10 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                     String strPref = address.get(0).getAdminArea();
 
                     // 都道府県名にてそらまめより、測定局リストを取得する
-                    new Pref().execute(strPref);
+                    if(!m_strCurrentPref.equalsIgnoreCase(strPref)) {
+                        m_strCurrentPref = strPref;
+                        new Pref().execute(strPref);
+                    }
                 }
                 catch(IOException e) {
 
@@ -334,7 +335,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                 Elements elements = doc.getElementsByTag("option");
 //                ArrayList<String> prefList = new ArrayList<String>();
                 for( Element element : elements) {
-                    if (new Integer(element.attr("value")) != 0) {
+                    if (Integer.valueOf(element.attr("value")) != 0) {
                         if(element.text().equalsIgnoreCase( params[0] ))
                         {
                             m_nPref = Integer.parseInt(element.attr("value"));
@@ -370,7 +371,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                                             int nCode = kyoku.codePointAt(0);
                                             // PM2.5測定局のみ
                                             if( nCode == 9675 ) {
-                                                Soramame mame = new Soramame(new Integer(data.get(0).text()), data.get(1).text(), data.get(2).text());
+                                                Soramame mame = new Soramame(Integer.valueOf(data.get(0).text()), data.get(1).text(), data.get(2).text());
                                                 mame.setSaisin(strSaisin);
 
                                                 Geocoder geo = new Geocoder(MapsActivity.this, Locale.JAPAN);
@@ -432,18 +433,24 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                  sora = ite.next();
                  WeightedLatLng weight = new WeightedLatLng( sora.getPosition(), sora.getData(0).getPM25());
                  aList.add(weight);
-                 mMap.addCircle(new CircleOptions().center(sora.getPosition()).radius(sora.getData(0).getPM25()).fillColor(Color.RED));
                  mMap.addMarker(new MarkerOptions().position(sora.getPosition()).title(sora.getMstName()).snippet(sora.getDataString(0)));
+                 mMap.addCircle(new CircleOptions()
+                         .center(sora.getPosition())
+                         .radius(sora.getData(0).getPM25()*100)
+                         .fillColor(Color.RED)
+                        .strokeWidth(0));
             }
-//            // Check if need to instantiate (avoid setData etc twice)
-//            if (mProvider == null) {
-//                mProvider = new HeatmapTileProvider.Builder().weightedData(aList).build();
-//                mProvider.setRadius(50);
-//                mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
-//            } else {
-//                mProvider.setWeightedData(aList);
-//                mOverlay.clearTileCache();
-//            }
+            // Check if need to instantiate (avoid setData etc twice)
+            if (mProvider == null) {
+                mProvider = new HeatmapTileProvider.Builder().weightedData(aList).build();
+                mProvider.setRadius(50);
+                mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
+                // Render links
+//                attribution.setMovementMethod(LinkMovementMethod.getInstance());
+            } else {
+                mProvider.setWeightedData(aList);
+                mOverlay.clearTileCache();
+            }
 
             mList.clear();
             mProgDialog.dismiss();
