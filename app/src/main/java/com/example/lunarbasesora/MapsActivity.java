@@ -2,6 +2,8 @@ package com.example.lunarbasesora;
 
 import android.app.ProgressDialog;
 import android.app.Service;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -17,6 +19,7 @@ import android.text.method.LinkMovementMethod;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.TileOverlay;
@@ -52,7 +55,8 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
 
     private LocationManager mLocationManager;
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
-    private LatLng mHome = null;
+
+    private LatLng mHome = null;        // 現在地（保存する）
 
     /**
      * Alternative radius for convolution
@@ -90,6 +94,25 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
     private boolean mDefaultGradient = true;
     private boolean mDefaultRadius = true;
     private boolean mDefaultOpacity = true;
+
+    // 現在地
+    private void getHome()
+    {
+        float fOrig = 0;
+        SharedPreferences sharePref = this.getPreferences(Context.MODE_PRIVATE);
+        mHome = null;
+        mHome = new LatLng( sharePref.getFloat("HomeLat", fOrig), sharePref.getFloat("HomeLng", fOrig));
+    }
+
+    private void setHome()
+    {
+        SharedPreferences sharePref = this.getPreferences(Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharePref.edit();
+        editor.putFloat("HomeLat", ((float) mHome.latitude));
+        editor.putFloat("HomeLng", ((float)mHome.longitude));
+        editor.commit();
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -409,19 +432,18 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                  sora = ite.next();
                  WeightedLatLng weight = new WeightedLatLng( sora.getPosition(), sora.getData(0).getPM25());
                  aList.add(weight);
-                mMap.addMarker(new MarkerOptions().position(sora.getPosition()).title(sora.getMstName()).snippet(sora.getDataString(0)));
+                 mMap.addCircle(new CircleOptions().center(sora.getPosition()).radius(sora.getData(0).getPM25()).fillColor(Color.RED));
+                 mMap.addMarker(new MarkerOptions().position(sora.getPosition()).title(sora.getMstName()).snippet(sora.getDataString(0)));
             }
-            // Check if need to instantiate (avoid setData etc twice)
-            if (mProvider == null) {
-                mProvider = new HeatmapTileProvider.Builder().weightedData(aList).build();
-                mProvider.setRadius(50);
-                mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
-                // Render links
-//                attribution.setMovementMethod(LinkMovementMethod.getInstance());
-            } else {
-                mProvider.setWeightedData(aList);
-                mOverlay.clearTileCache();
-            }
+//            // Check if need to instantiate (avoid setData etc twice)
+//            if (mProvider == null) {
+//                mProvider = new HeatmapTileProvider.Builder().weightedData(aList).build();
+//                mProvider.setRadius(50);
+//                mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
+//            } else {
+//                mProvider.setWeightedData(aList);
+//                mOverlay.clearTileCache();
+//            }
 
             mList.clear();
             mProgDialog.dismiss();
