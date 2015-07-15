@@ -571,7 +571,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                  mMap.addCircle(new CircleOptions()
                          .center(sora.getPosition())
                          .radius(sora.getData(0).getPM25Radius())
-                         .fillColor(Color.RED)
+                         .fillColor(sora.getData(0).getPM25Color())
                          .strokeWidth(0));
             }
 //            // Check if need to instantiate (avoid setData etc twice)

@@ -1,5 +1,7 @@
 package com.example.lunarbasesora;
 
+import android.graphics.Color;
+
 import com.google.android.gms.maps.model.LatLng;
 
 import java.util.ArrayList;
@@ -84,6 +86,33 @@ public class Soramame {
         }
         public double getPM25Radius(){ return (double)getPM25()*100; }
         public String getPM25String(){ return String.format("%s",(m_nPM25 < 0 ? "未計測" : m_nPM25.toString()));}
+        // 色設定
+        // ～１０　青
+        // １１～１５    水色
+        // １６～３５    黄緑
+        // ３６～５０    黄色
+        // ５１～７０    オレンジ
+        // ７１～          赤
+        public int getPM25Color(){
+            int nColor = Color.argb(126, 255, 0,0);
+            if( m_nPM25 <= 10 ){
+                nColor = Color.argb( 126, 0, 0, 255);
+            }
+            else if( 11 <= m_nPM25 && m_nPM25 <= 15 ){
+                nColor = Color.argb(126, 0, 255, 255);
+            }
+            else if( 16 <= m_nPM25 && m_nPM25 <= 35 ){
+                nColor = Color.argb(126, 0, 255, 128);
+            }
+            else if( 36 <= m_nPM25 && m_nPM25 <= 50 ){
+                nColor = Color.argb(126, 255, 255, 0);
+            }
+            else if( 51 <= m_nPM25 && m_nPM25 <= 70 ){
+                nColor = Color.argb(126, 255, 128, 0);
+            }
+
+            return nColor;
+        }
 
         public void setPM25(Integer pm25)
         {
