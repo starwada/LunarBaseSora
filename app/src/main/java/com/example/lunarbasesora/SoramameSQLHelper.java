@@ -19,10 +19,12 @@ public class SoramameSQLHelper  extends SQLiteOpenHelper{
             "CREATE TABLE " + SoramameContract.FeedEntry.TABLE_NAME + " (" +
                     SoramameContract.FeedEntry._ID + " INTEGER PRIMARY KEY," +
                     SoramameContract.FeedEntry.COLUMN_NAME_STATION + TEXT_TYPE + COMMA_SEP +
-                    SoramameContract.FeedEntry.COLUMN_NAME_CODE + "INTEGER" + COMMA_SEP +
+                    SoramameContract.FeedEntry.COLUMN_NAME_CODE + " INTEGER" + COMMA_SEP +
                     SoramameContract.FeedEntry.COLUMN_NAME_ADDRESS + TEXT_TYPE + COMMA_SEP +
-                    SoramameContract.FeedEntry.COLUMN_NAME_LAT + "REAL" + COMMA_SEP +
-                    SoramameContract.FeedEntry.COLUMN_NAME_LNG + "REAL" +
+                    SoramameContract.FeedEntry.COLUMN_NAME_PREFCODE + " INTEGER" + COMMA_SEP +
+                    SoramameContract.FeedEntry.COLUMN_NAME_LAT + " REAL" + COMMA_SEP +
+                    SoramameContract.FeedEntry.COLUMN_NAME_LNG + " REAL" + //COMMA_SEP +
+//                    SoramameContract.FeedEntry.COLUMN_NAME_PM25 + " INTEGER" +
                     " )";
 
     private static final String SQL_DELETE_ENTRIES =

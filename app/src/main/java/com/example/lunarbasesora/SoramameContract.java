@@ -17,7 +17,9 @@ public final class SoramameContract {
         public static final String COLUMN_NAME_STATION = "stationname";
         public static final String COLUMN_NAME_CODE = "stationcode";
         public static final String COLUMN_NAME_ADDRESS = "stationaddress";
+        public static final String COLUMN_NAME_PREFCODE = "prefcode";
         public static final String COLUMN_NAME_LAT ="stationLat";
         public static final String COLUMN_NAME_LNG = "stationLng";
+        public static final String COLUMN_NAME_PM25 = "PM25";
     }
 }

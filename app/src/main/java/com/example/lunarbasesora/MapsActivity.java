@@ -2,8 +2,12 @@ package com.example.lunarbasesora;
 
 import android.app.ProgressDialog;
 import android.app.Service;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -46,6 +50,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
     private static final String SORADATAURL = "DataList.php?MstCode=";
     // 指定都道府県の測定局一覧取得
     private static final String SORAPREFURL ="MstItiranFrame.php?Pref=";
+    private static final String SORADATAHYOUURL = "DataHyou.php?BlockID=%s&Time=%s&Pref=%s";
 
     //    private static final String TAG = MapsActivity.class.getSimpleName();
     // 更新時間(目安)
@@ -201,10 +206,10 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                     String strPref = address.get(0).getAdminArea();
 
                     // 都道府県名にてそらまめより、測定局リストを取得する
-                    if(!m_strCurrentPref.equalsIgnoreCase(strPref)) {
+//                    if(!m_strCurrentPref.equalsIgnoreCase(strPref)) {
                         m_strCurrentPref = strPref;
                         new Pref().execute(strPref);
-                    }
+//                    }
                 }
                 catch(IOException e) {
 
@@ -293,12 +298,114 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
 //        }
     }
 
+    // 測定局取得
+    private class SoraStation extends AsyncTask<Integer, Void, Void>
+    {
+        @Override
+        protected void onPreExecute()
+        {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected Void doInBackground(Integer... params)
+        {
+            try {
+
+                String url = String.format("%s%s%d", SORABASEURL, SORAPREFURL, params[0]);
+                Document doc = Jsoup.connect(url).get();
+                Elements prefs = doc.getElementsByAttributeValue("name", "Hyou");
+                for (Element pref : prefs) {
+                    if (pref.hasAttr("src")) {
+                        url = pref.attr("src");
+                        String soraurl = SORABASEURL + url;
+
+                        Document sora = Jsoup.connect(soraurl).get();
+                        Element body = sora.body();
+                        Elements tables = body.getElementsByTag("tr");
+                        url = "";
+                        Integer cnt = 0;
+//                        if (mList != null) {
+//                            mList.clear();
+//                        }
+//                        mList = new ArrayList<Soramame>();
+
+                        for (Element ta : tables) {
+                            if (cnt++ > 0) {
+                                Elements data = ta.getElementsByTag("td");
+                                String kyoku = data.get(13).text();
+                                // 最後のデータが空なので
+                                if (kyoku.length() < 1) {
+                                    break;
+                                }
+                                int nCode = kyoku.codePointAt(0);
+                                // PM2.5測定局のみ
+                                if (nCode == 9675) {
+                                    Soramame mame = new Soramame(Integer.valueOf(data.get(0).text()), data.get(1).text(), data.get(2).text());
+//                                    mame.setSaisin(m_strSaisin);
+
+                                    Geocoder geo = new Geocoder(MapsActivity.this, Locale.JAPAN);
+                                    List<Address> address = geo.getFromLocationName(mame.getAddress(), 1);
+                                    // 住所から緯度経度が取得できない場合があった
+                                    if (address.size() > 0) {
+
+                                        LatLng station = new LatLng(address.get(0).getLatitude(), address.get(0).getLongitude());
+                                        mame.setPosition(station);
+
+                                        float[] results = new float[1];
+                                        Location.distanceBetween(mHome.latitude, mHome.longitude, station.latitude, station.longitude, results);
+                                        if (results[0] < 30000) {
+                                            // 該当測定局データを取得
+                                            url = String.format("%s%s%d", SORABASEURL, SORADATAURL, mame.getMstCode());
+                                            Document sta = Jsoup.connect(url).get();
+                                            Elements datas = sta.getElementsByAttributeValue("name", "Hyou");
+                                            for (Element dat : datas) {
+                                                if (dat.hasAttr("src")) {
+                                                    url = dat.attr("src");
+
+                                                    sta = Jsoup.connect(SORABASEURL + url).get();
+                                                    Element DataListHyou = sta.body();
+                                                    Elements trs = DataListHyou.getElementsByTag("tr");
+                                                    Elements tds = trs.get(1).getElementsByTag("td");
+
+                                                    mame.setData(tds.get(0).text(), tds.get(1).text(), tds.get(2).text(), tds.get(3).text(), tds.get(14).text());
+
+//                                                    mList.add(mame);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch(IOException e)
+            {
+
+            }
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result)
+        {
+
+        }
+
+    }
+
     // 都道府県
     private class Pref extends AsyncTask<String, Void, Void>
     {
+        String m_strSaisin = "";
         int m_nPref = 0;
         ArrayList<Soramame> mList;
         private ProgressDialog mProgDialog;
+        SoramameSQLHelper mDbHelper = new SoramameSQLHelper(MapsActivity.this);
+        SQLiteDatabase mDb = null;
 
         @Override
         protected void onPreExecute()
@@ -318,27 +425,59 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
         {
             try
             {
+
                 String url = String.format("%s%s", SORABASEURL, SORASUBURL);
                 Document doc = Jsoup.connect(url).get();
                 // 最新（日時）取得
-                String strSaisin = "";
                 Elements tags = doc.getElementsByTag("input");
                 for(Element ele: tags)
                 {
                     if( ele.attr("name").equalsIgnoreCase("Saisin"))
                     {
-                        strSaisin = ele.attr("value");
+                        m_strSaisin = ele.attr("value");
                         break;
                     }
                 }
 
                 Elements elements = doc.getElementsByTag("option");
-//                ArrayList<String> prefList = new ArrayList<String>();
                 for( Element element : elements) {
                     if (Integer.valueOf(element.attr("value")) != 0) {
                         if(element.text().equalsIgnoreCase( params[0] ))
                         {
                             m_nPref = Integer.parseInt(element.attr("value"));
+                            // 測定日時の最新と都道府県が分かった時点で、測定局の最新データを読み込んでおく
+                            // SORADATAHYOUURLにブロックID、日時、都道府県番号を設定して、URL実行。
+                            // frame name=Hyouでsrcを取得、そのURLで実行して、測定局のデータを取得
+
+                            mDb = mDbHelper.getReadableDatabase();
+                            if( !mDb.isOpen() ){ return null; }
+
+                            String[] selectionArgs = { String.valueOf(m_nPref)};
+                            Cursor c = mDb.query(SoramameContract.FeedEntry.TABLE_NAME, null,
+                                    SoramameContract.FeedEntry.COLUMN_NAME_PREFCODE + " = ?",  selectionArgs, null, null, null);
+                            if( c.getCount() > 0 )
+                            {
+                                if( c.moveToFirst() ) {
+                                    if(mList != null) {
+                                        mList.clear();
+                                    }
+                                    mList = new ArrayList<Soramame>();
+                                    while (true) {
+                                        Soramame mame = new Soramame(
+                                                c.getInt(c.getColumnIndexOrThrow(SoramameContract.FeedEntry.COLUMN_NAME_CODE)),
+                                                c.getString(c.getColumnIndexOrThrow( SoramameContract.FeedEntry.COLUMN_NAME_STATION)),
+                                                c.getString(c.getColumnIndexOrThrow(SoramameContract.FeedEntry.COLUMN_NAME_ADDRESS)));
+                                        LatLng pos = new LatLng( c.getDouble(c.getColumnIndexOrThrow(SoramameContract.FeedEntry.COLUMN_NAME_LAT)),
+                                                c.getDouble(c.getColumnIndexOrThrow(SoramameContract.FeedEntry.COLUMN_NAME_LNG)));
+                                        mame.setPosition(pos);
+                                        getStationData(mame);
+
+                                        if( !c.moveToNext()){ break; }
+                                    }
+                                }
+                                return null;
+                            }
+                            mDb = mDbHelper.getWritableDatabase();
 
                             url = String.format("%s%s%d", SORABASEURL, SORAPREFURL, m_nPref);
                             doc = Jsoup.connect(url).get();
@@ -372,7 +511,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                                             // PM2.5測定局のみ
                                             if( nCode == 9675 ) {
                                                 Soramame mame = new Soramame(Integer.valueOf(data.get(0).text()), data.get(1).text(), data.get(2).text());
-                                                mame.setSaisin(strSaisin);
+                                                mame.setSaisin(m_strSaisin);
 
                                                 Geocoder geo = new Geocoder(MapsActivity.this, Locale.JAPAN);
                                                 List<Address> address = geo.getFromLocationName(mame.getAddress(), 1);
@@ -382,30 +521,19 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                                                     LatLng station = new LatLng(address.get(0).getLatitude(), address.get(0).getLongitude());
                                                     mame.setPosition(station);
 
-                                                    float[] results = new float[1];
-                                                    Location.distanceBetween(mHome.latitude, mHome.longitude, station.latitude, station.longitude, results);
-                                                    if( results[0] < 30000) {
-                                                        // 該当測定局データを取得
-                                                        url = String.format("%s%s%d", SORABASEURL, SORADATAURL, mame.getMstCode());
-                                                        Document sta = Jsoup.connect(url).get();
-                                                        Elements datas = sta.getElementsByAttributeValue("name", "Hyou");
-                                                        for( Element dat : datas) {
-                                                            if (dat.hasAttr("src")) {
-                                                                url = dat.attr("src");
+                                                    // 測定局DBに保存
+                                                    ContentValues values = new ContentValues();
+                                                    values.put(SoramameContract.FeedEntry.COLUMN_NAME_STATION, data.get(1).text());
+                                                    values.put(SoramameContract.FeedEntry.COLUMN_NAME_CODE, Integer.valueOf(data.get(0).text()));
+                                                    values.put(SoramameContract.FeedEntry.COLUMN_NAME_ADDRESS, data.get(2).text());
+                                                    values.put(SoramameContract.FeedEntry.COLUMN_NAME_PREFCODE, m_nPref);
+                                                    values.put(SoramameContract.FeedEntry.COLUMN_NAME_LAT, address.get(0).getLatitude());
+                                                    values.put(SoramameContract.FeedEntry.COLUMN_NAME_LNG, address.get(0).getLongitude());
+//                                                    values.put(SoramameContract.FeedEntry.COLUMN_NAME_PM25, );
+                                                    long newRowId = mDb.insert( SoramameContract.FeedEntry.TABLE_NAME, null, values);
 
-                                                                sta = Jsoup.connect(SORABASEURL + url).get();
-                                                                Element DataListHyou = sta.body();
-                                                                Elements trs = DataListHyou.getElementsByTag("tr");
-                                                                Elements tds = trs.get(1).getElementsByTag("td");
-
-                                                                mame.setData(tds.get(0).text(), tds.get(1).text(), tds.get(2).text(), tds.get(3).text(), tds.get(14).text());
-
-                                                                mList.add(mame);
-                                                            }
-                                                        }
-                                                    }
+                                                    getStationData(mame);
                                                 }
-
                                             }
                                         }
                                     }
@@ -420,12 +548,18 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
             {
                 e.printStackTrace();
             }
+            catch (SQLiteException e)
+            {
+                e.printStackTrace();
+            }
             return null;
         }
 
         @Override
         protected void onPostExecute(Void result)
         {
+            if( mDb.isOpen()){ mDb.close(); }
+
             Iterator<Soramame> ite = mList.iterator();
             Soramame sora;
              ArrayList<WeightedLatLng> aList = new ArrayList<WeightedLatLng>();
@@ -438,7 +572,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                          .center(sora.getPosition())
                          .radius(sora.getData(0).getPM25Radius())
                          .fillColor(Color.RED)
-                        .strokeWidth(0));
+                         .strokeWidth(0));
             }
 //            // Check if need to instantiate (avoid setData etc twice)
 //            if (mProvider == null) {
@@ -452,6 +586,39 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
 
             mList.clear();
             mProgDialog.dismiss();
+        }
+
+        private void getStationData(Soramame mame)
+        {
+            float[] results = new float[1];
+            Location.distanceBetween(mHome.latitude, mHome.longitude, mame.getPosition().latitude, mame.getPosition().longitude, results);
+            if( results[0] < 30000) {
+                // 該当測定局データを取得
+                String url = String.format("%s%s%d", SORABASEURL, SORADATAURL, mame.getMstCode());
+                try {
+                    Document sta = Jsoup.connect(url).get();
+                    Elements datas = sta.getElementsByAttributeValue("name", "Hyou");
+                    for (Element dat : datas) {
+                        if (dat.hasAttr("src")) {
+                            url = dat.attr("src");
+
+                            sta = Jsoup.connect(SORABASEURL + url).get();
+                            Element DataListHyou = sta.body();
+                            Elements trs = DataListHyou.getElementsByTag("tr");
+                            Elements tds = trs.get(1).getElementsByTag("td");
+
+                            mame.setData(tds.get(0).text(), tds.get(1).text(), tds.get(2).text(), tds.get(3).text(), tds.get(14).text());
+
+                            mList.add(mame);
+                            break;
+                        }
+                    }
+                }
+                catch(IOException e)
+                {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
