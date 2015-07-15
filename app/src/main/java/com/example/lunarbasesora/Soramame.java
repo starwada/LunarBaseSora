@@ -64,7 +64,7 @@ public class Soramame {
         {
             m_dDate = new Date(Integer.valueOf(strYear), Integer.valueOf(strMonth),
                     Integer.valueOf(strDay), Integer.valueOf(strHour), 0);
-            // 未計測の場合、"-"が出力される。
+            // 未計測の場合、"-"が出力される。未計測の別パターンがあった。スペースで、コードを調べると（１２２８８）。
             if( strValue.codePointAt(0) == 12288 || strValue.equalsIgnoreCase("-") ){ m_nPM25 = -100 ; }
             else{ m_nPM25 = Integer.valueOf(strValue); }
         }
@@ -80,8 +80,9 @@ public class Soramame {
         }
         public  Integer getPM25()
         {
-            return (m_nPM25 < 0 ? 1 : m_nPM25);
+            return (m_nPM25 < 0 ? 0 : m_nPM25);
         }
+        public double getPM25Radius(){ return (double)getPM25()*100; }
         public String getPM25String(){ return String.format("%s",(m_nPM25 < 0 ? "未計測" : m_nPM25.toString()));}
 
         public void setPM25(Integer pm25)

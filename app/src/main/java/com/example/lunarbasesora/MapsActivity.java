@@ -88,12 +88,12 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
     public static final Gradient ALT_HEATMAP_GRADIENT = new Gradient(ALT_HEATMAP_GRADIENT_COLORS,
             ALT_HEATMAP_GRADIENT_START_POINTS);
 
-    private HeatmapTileProvider mProvider;
-    private TileOverlay mOverlay;
-
-    private boolean mDefaultGradient = true;
-    private boolean mDefaultRadius = true;
-    private boolean mDefaultOpacity = true;
+//    private HeatmapTileProvider mProvider;
+//    private TileOverlay mOverlay;
+//
+//    private boolean mDefaultGradient = true;
+//    private boolean mDefaultRadius = true;
+//    private boolean mDefaultOpacity = true;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -436,21 +436,19 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                  mMap.addMarker(new MarkerOptions().position(sora.getPosition()).title(sora.getMstName()).snippet(sora.getDataString(0)));
                  mMap.addCircle(new CircleOptions()
                          .center(sora.getPosition())
-                         .radius(sora.getData(0).getPM25()*100)
+                         .radius(sora.getData(0).getPM25Radius())
                          .fillColor(Color.RED)
                         .strokeWidth(0));
             }
-            // Check if need to instantiate (avoid setData etc twice)
-            if (mProvider == null) {
-                mProvider = new HeatmapTileProvider.Builder().weightedData(aList).build();
-                mProvider.setRadius(50);
-                mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
-                // Render links
-//                attribution.setMovementMethod(LinkMovementMethod.getInstance());
-            } else {
-                mProvider.setWeightedData(aList);
-                mOverlay.clearTileCache();
-            }
+//            // Check if need to instantiate (avoid setData etc twice)
+//            if (mProvider == null) {
+//                mProvider = new HeatmapTileProvider.Builder().weightedData(aList).build();
+//                mProvider.setRadius(50);
+//                mOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mProvider));
+//            } else {
+//                mProvider.setWeightedData(aList);
+//                mOverlay.clearTileCache();
+//            }
 
             mList.clear();
             mProgDialog.dismiss();
