@@ -67,7 +67,7 @@ public class Soramame {
             m_dDate = new Date(Integer.valueOf(strYear), Integer.valueOf(strMonth),
                     Integer.valueOf(strDay), Integer.valueOf(strHour), 0);
             // 未計測の場合、"-"が出力される。未計測の別パターンがあった。スペースで、コードを調べると（１２２８８）。
-            if( strValue.codePointAt(0) == 12288 || strValue.equalsIgnoreCase("-") ){ m_nPM25 = -100 ; }
+            if( strValue.codePointAt(0) == 12288 || strValue.codePointAt(0) == 160 || strValue.equalsIgnoreCase("-") ){ m_nPM25 = -100 ; }
             else{ m_nPM25 = Integer.valueOf(strValue); }
         }
 
@@ -154,6 +154,9 @@ public class Soramame {
     public void setSaisin(String string){m_strSaisin = string;}
     public void setPosition(LatLng pos){ mPosition = pos; }
 
+    public void setData(String strDate, String strValue){
+        setData(strDate.substring(0, 4), strDate.substring(4,6), strDate.substring(6,8), strDate.substring(8,10), strValue);
+    }
     public void setData(String strYear, String strMonth, String strDay, String strHour, String strValue)
     {
         SoramameData data = new SoramameData(strYear, strMonth, strDay, strHour, strValue);
@@ -181,7 +184,9 @@ public class Soramame {
     }
     public int getSize()
     {
-        return m_aData.size();
+        int nSize = 0;
+        if(m_aData != null){ nSize = m_aData.size(); }
+        return nSize;
     }
 
     public ArrayList<SoramameData> getData()

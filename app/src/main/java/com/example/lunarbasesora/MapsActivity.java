@@ -50,7 +50,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
     private static final String SORADATAURL = "DataList.php?MstCode=";
     // 指定都道府県の測定局一覧取得
     private static final String SORAPREFURL ="MstItiranFrame.php?Pref=";
-    private static final String SORADATAHYOUURL = "DataHyou.php?BlockID=%s&Time=%s&Pref=%s";
+    private static final String SORADATAHYOUURL = "DataHyou.php?BlockID=%02d&Time=%s&Pref=%02d";
 
     //    private static final String TAG = MapsActivity.class.getSimpleName();
     // 更新時間(目安)
@@ -60,45 +60,92 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
 
     private LocationManager mLocationManager;
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
-    private  String m_strCurrentPref;
+    private String m_strCurrentPref;
     private LatLng mHome = null;
 
-    /**
-     * Alternative radius for convolution
-     */
-    private static final int ALT_HEATMAP_RADIUS = 10;
-
-    /**
-     * Alternative opacity of heatmap overlay
-     */
-    private static final double ALT_HEATMAP_OPACITY = 0.4;
-
-    /**
-     * Alternative heatmap gradient (blue -> red)
-     * Copied from Javascript version
-     */
-    private static final int[] ALT_HEATMAP_GRADIENT_COLORS = {
-            Color.argb(0, 0, 255, 255),// transparent
-            Color.argb(255 / 3 * 2, 0, 255, 255),
-            Color.rgb(0x8B, 0xC3, 0x4A),
-            Color.rgb(0xff, 0xEB, 0x38),
-            Color.rgb(0xFF, 0x98, 0),
-            Color.rgb(255, 0, 0)
-    };
-
-    public static final float[] ALT_HEATMAP_GRADIENT_START_POINTS = {
-            0.0f, 0.20f, 0.40f, 0.60f, 0.8f, 1.0f
-    };
-
-    public static final Gradient ALT_HEATMAP_GRADIENT = new Gradient(ALT_HEATMAP_GRADIENT_COLORS,
-            ALT_HEATMAP_GRADIENT_START_POINTS);
-
+//    /**
+//     * Alternative radius for convolution
+//     */
+//    private static final int ALT_HEATMAP_RADIUS = 10;
+//
+//    /**
+//     * Alternative opacity of heatmap overlay
+//     */
+//    private static final double ALT_HEATMAP_OPACITY = 0.4;
+//
+//    /**
+//     * Alternative heatmap gradient (blue -> red)
+//     * Copied from Javascript version
+//     */
+//    private static final int[] ALT_HEATMAP_GRADIENT_COLORS = {
+//            Color.argb(0, 0, 255, 255),// transparent
+//            Color.argb(255 / 3 * 2, 0, 255, 255),
+//            Color.rgb(0x8B, 0xC3, 0x4A),
+//            Color.rgb(0xff, 0xEB, 0x38),
+//            Color.rgb(0xFF, 0x98, 0),
+//            Color.rgb(255, 0, 0)
+//    };
+//
+//    public static final float[] ALT_HEATMAP_GRADIENT_START_POINTS = {
+//            0.0f, 0.20f, 0.40f, 0.60f, 0.8f, 1.0f
+//    };
+//
+//    public static final Gradient ALT_HEATMAP_GRADIENT = new Gradient(ALT_HEATMAP_GRADIENT_COLORS,
+//            ALT_HEATMAP_GRADIENT_START_POINTS);
 //    private HeatmapTileProvider mProvider;
 //    private TileOverlay mOverlay;
 //
 //    private boolean mDefaultGradient = true;
 //    private boolean mDefaultRadius = true;
 //    private boolean mDefaultOpacity = true;
+
+    // 都道府県コードよりブロックID変換
+    public int getBlockID(int nPref){
+        int nBlockID = 1;
+        switch(nPref){
+            // 東北
+            case 2:
+            case 3:
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+                nBlockID = 2;
+                break;
+            // 関東
+            // 首都圏は同じでID=10
+            case 8:
+                nBlockID = 3;
+                break;
+            // 東海
+            case 21:
+            case 22:
+            case 23:
+            case 24:
+                nBlockID = 4;
+                break;
+            // 中部
+            case 15:
+                nBlockID = 5;
+                break;
+            // 九州
+            case 40:
+            case 41:
+            case 42:
+            case 43:
+            case 44:
+            case 45:
+            case 46:
+                nBlockID = 8;
+                break;
+            case 47:
+                nBlockID = 9;
+                break;
+        }
+
+        return nBlockID;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -126,7 +173,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
         SharedPreferences sharedPref = this.getPreferences(Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
         editor.putString("CurrentPref", m_strCurrentPref);
-        editor.commit();
+        editor.apply();
 
         super.onPause();
     }
@@ -212,7 +259,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
 //                    }
                 }
                 catch(IOException e) {
-
+                    e.printStackTrace();
                 }
 
 //                showLocation(location);
@@ -383,7 +430,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
             }
             catch(IOException e)
             {
-
+                e.printStackTrace();
             }
 
             return null;
@@ -398,10 +445,12 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
     }
 
     // 都道府県
+    // 入力：現在地の都道府県名
     private class Pref extends AsyncTask<String, Void, Void>
     {
         String m_strSaisin = "";
         int m_nPref = 0;
+        ArrayList<String> mStationList;
         ArrayList<Soramame> mList;
         private ProgressDialog mProgDialog;
         SoramameSQLHelper mDbHelper = new SoramameSQLHelper(MapsActivity.this);
@@ -448,6 +497,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                             // 測定日時の最新と都道府県が分かった時点で、測定局の最新データを読み込んでおく
                             // SORADATAHYOUURLにブロックID、日時、都道府県番号を設定して、URL実行。
                             // frame name=Hyouでsrcを取得、そのURLで実行して、測定局のデータを取得
+                            getAreaData(m_strSaisin, m_nPref);
 
                             mDb = mDbHelper.getReadableDatabase();
                             if( !mDb.isOpen() ){ return null; }
@@ -530,7 +580,8 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                                                     values.put(SoramameContract.FeedEntry.COLUMN_NAME_LAT, address.get(0).getLatitude());
                                                     values.put(SoramameContract.FeedEntry.COLUMN_NAME_LNG, address.get(0).getLongitude());
 //                                                    values.put(SoramameContract.FeedEntry.COLUMN_NAME_PM25, );
-                                                    long newRowId = mDb.insert( SoramameContract.FeedEntry.TABLE_NAME, null, values);
+                                                    // 重複は追加しない
+                                                    long newRowId = mDb.insertWithOnConflict(SoramameContract.FeedEntry.TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_IGNORE);
 
                                                     getStationData(mame);
                                                 }
@@ -544,11 +595,11 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                     }
                 }
             }
-            catch(IOException e)
+            catch (SQLiteException e)
             {
                 e.printStackTrace();
             }
-            catch (SQLiteException e)
+            catch(IOException e)
             {
                 e.printStackTrace();
             }
@@ -562,11 +613,13 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
 
             Iterator<Soramame> ite = mList.iterator();
             Soramame sora;
-             ArrayList<WeightedLatLng> aList = new ArrayList<WeightedLatLng>();
+            // 以下のコメントはヒートマップ用
+             //ArrayList<WeightedLatLng> aList = new ArrayList<WeightedLatLng>();
              while (ite.hasNext()) {
                  sora = ite.next();
-                 WeightedLatLng weight = new WeightedLatLng( sora.getPosition(), sora.getData(0).getPM25());
-                 aList.add(weight);
+                 // 以下のコメントはヒートマップ用
+                 //WeightedLatLng weight = new WeightedLatLng( sora.getPosition(), sora.getData(0).getPM25());
+                 //aList.add(weight);
                  mMap.addMarker(new MarkerOptions().position(sora.getPosition()).title(sora.getMstName()).snippet(sora.getDataString(0)));
                  mMap.addCircle(new CircleOptions()
                          .center(sora.getPosition())
@@ -574,6 +627,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                          .fillColor(sora.getData(0).getPM25Color())
                          .strokeWidth(0));
             }
+            // 以下のコメントはヒートマップ用
 //            // Check if need to instantiate (avoid setData etc twice)
 //            if (mProvider == null) {
 //                mProvider = new HeatmapTileProvider.Builder().weightedData(aList).build();
@@ -588,38 +642,126 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
             mProgDialog.dismiss();
         }
 
+        // 指定都道府県最新データ取得
+        private void getAreaData(String strSaisin, int nPref){
+            // 都道府県一覧データ
+            String strSubUrl = String.format(SORADATAHYOUURL, getBlockID(nPref), strSaisin, nPref);
+            String url = String.format("%s%s", SORABASEURL, strSubUrl);
+            try {
+                Document sta = Jsoup.connect(url).get();
+                Elements datas = sta.getElementsByAttributeValue("name", "Hyou");
+                for (Element dat : datas) {
+                    if (dat.hasAttr("src")) {
+                        url = dat.attr("src");
+
+                        mStationList = new ArrayList<String>();
+                        // 指定都道府県の測定局データ
+                        sta = Jsoup.connect(SORABASEURL + url).get();
+                        Element DataListHyou = sta.body();
+                        Elements trs = DataListHyou.getElementsByTag("tr");
+                        //String strCode;
+                        //String strValue;
+                        for( Element st : trs){
+                            Elements tds = st.getElementsByTag("td");
+                            mStationList.add(tds.get(0).text());        // 測定局コード
+                            mStationList.add(tds.get(13).text());      // PM2.5
+                        }
+                        break;
+                    }
+                }
+            }
+            catch(IOException e)
+            {
+                e.printStackTrace();
+            }
+        }
+
         private void getStationData(Soramame mame)
         {
             float[] results = new float[1];
             Location.distanceBetween(mHome.latitude, mHome.longitude, mame.getPosition().latitude, mame.getPosition().longitude, results);
             if( results[0] < 30000) {
-                // 該当測定局データを取得
-                String url = String.format("%s%s%d", SORABASEURL, SORADATAURL, mame.getMstCode());
-                try {
-                    Document sta = Jsoup.connect(url).get();
-                    Elements datas = sta.getElementsByAttributeValue("name", "Hyou");
-                    for (Element dat : datas) {
-                        if (dat.hasAttr("src")) {
-                            url = dat.attr("src");
-
-                            sta = Jsoup.connect(SORABASEURL + url).get();
-                            Element DataListHyou = sta.body();
-                            Elements trs = DataListHyou.getElementsByTag("tr");
-                            Elements tds = trs.get(1).getElementsByTag("td");
-
-                            mame.setData(tds.get(0).text(), tds.get(1).text(), tds.get(2).text(), tds.get(3).text(), tds.get(14).text());
-
-                            mList.add(mame);
-                            break;
-                        }
+                Iterator<String> ite = mStationList.iterator();
+                while(ite.hasNext()){
+                    if(ite.next().equalsIgnoreCase(mame.getMstCode().toString())){
+                        mame.setData(m_strSaisin, ite.next());
+                        mList.add(mame);
+                        break;
                     }
+                    ite.next();
                 }
-                catch(IOException e)
-                {
-                    e.printStackTrace();
-                }
+//                // 該当測定局データを取得
+//                String url = String.format("%s%s%d", SORABASEURL, SORADATAURL, mame.getMstCode());
+//                try {
+//                    Document sta = Jsoup.connect(url).get();
+//                    Elements datas = sta.getElementsByAttributeValue("name", "Hyou");
+//                    for (Element dat : datas) {
+//                        if (dat.hasAttr("src")) {
+//                            url = dat.attr("src");
+//
+//                            sta = Jsoup.connect(SORABASEURL + url).get();
+//                            Element DataListHyou = sta.body();
+//                            Elements trs = DataListHyou.getElementsByTag("tr");
+//                            Elements tds = trs.get(1).getElementsByTag("td");
+//
+//                            mame.setData(tds.get(0).text(), tds.get(1).text(), tds.get(2).text(), tds.get(3).text(), tds.get(14).text());
+//
+//                            mList.add(mame);
+//                            break;
+//                        }
+//                    }
+//                }
+//                catch(IOException e)
+//                {
+//                    e.printStackTrace();
+//                }
             }
         }
     }
 
+    // 測定局コードにて最新の測定値を取得する
+    // これはユーザーが指定した測定局データ取得用とする。
+    private class MstData extends AsyncTask<Soramame, Void, Soramame>
+    {
+        @Override
+        protected void onPreExecute()
+        {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected Soramame doInBackground(Soramame... params) {
+            // 該当測定局データを取得
+            String url = String.format("%s%s%d", SORABASEURL, SORADATAURL, params[0].getMstCode());
+            try {
+                Document sta = Jsoup.connect(url).get();
+                Elements datas = sta.getElementsByAttributeValue("name", "Hyou");
+                for (Element dat : datas) {
+                    if (dat.hasAttr("src")) {
+                        url = dat.attr("src");
+
+                        sta = Jsoup.connect(SORABASEURL + url).get();
+                        Element DataListHyou = sta.body();
+                        Elements trs = DataListHyou.getElementsByTag("tr");
+                        Elements tds = trs.get(1).getElementsByTag("td");
+
+                        params[0].setData(tds.get(0).text(), tds.get(1).text(), tds.get(2).text(), tds.get(3).text(), tds.get(14).text());
+
+                        break;
+                    }
+                }
+            }
+            catch(IOException e)
+            {
+                e.printStackTrace();
+            }
+
+            return params[0];
+        }
+
+        @Override
+        protected void onPostExecute(Soramame result) {
+        }
+
+    }
 }
