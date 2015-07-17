@@ -25,6 +25,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.TileOverlay;
 import com.google.android.gms.maps.model.TileOverlayOptions;
@@ -43,7 +44,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 
-public class MapsActivity extends FragmentActivity implements LocationListener{
+public class MapsActivity extends FragmentActivity implements LocationListener,
+        GoogleMap.OnMarkerDragListener, GoogleMap.OnMapLongClickListener {
     // そらまめメインURL
     private static final String SORABASEURL="http://soramame.taiki.go.jp/";
     private static final String SORASUBURL ="MstItiran.php";
@@ -62,6 +64,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private String m_strCurrentPref;
     private LatLng mHome = null;
+    private Marker mHomeMarker;
 
 //    /**
 //     * Alternative radius for convolution
@@ -232,6 +235,43 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
         }
     }
 
+    @Override
+    public void onMarkerDragStart(Marker marker) {
+        onMarkerMoved(marker);
+    }
+
+    @Override
+    public void onMarkerDragEnd(Marker marker) {
+        mHome = null;
+        mHome = marker.getPosition();
+        soraUpdates();
+        //onMarkerMoved(marker);
+    }
+
+    @Override
+    public void onMarkerDrag(Marker marker) {
+        onMarkerMoved(marker);
+    }
+
+    private void onMarkerMoved(Marker marker) {
+        if(mHomeMarker != null) {
+
+        }
+    }
+
+    @Override
+    public void onMapLongClick(LatLng point) {
+        // We know the center, let's place the outline at a point 3/4 along the view.
+//        View view = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
+//                .getView();
+//        LatLng radiusLatLng = mMap.getProjection().fromScreenLocation(new Point(
+//                view.getHeight() * 3 / 4, view.getWidth() * 3 / 4));
+
+        // ok create it
+//        DraggableCircle circle = new DraggableCircle(point, radiusLatLng);
+//        mCircles.add(circle);
+    }
+
     private void requestLocationUpdates() {
 //        Log.e(TAG, "requestLocationUpdates()");
         boolean isNetworkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
@@ -245,28 +285,33 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
             if (location != null) {
                 // 現在地取得
                 mHome = new LatLng(location.getLatitude(), location.getLongitude());
-                try {
-                    // 現在地の住所取得（都道府県名）
-                    // Address.getAdminArea()にて都道府県名を取得できる
-                    Geocoder geo = new Geocoder(this, Locale.JAPAN);
-                    List<Address> address = geo.getFromLocation(mHome.latitude, mHome.longitude, 1);
-                    String strPref = address.get(0).getAdminArea();
-
-                    // 都道府県名にてそらまめより、測定局リストを取得する
-//                    if(!m_strCurrentPref.equalsIgnoreCase(strPref)) {
-                        m_strCurrentPref = strPref;
-                        new Pref().execute(strPref);
-//                    }
-                }
-                catch(IOException e) {
-                    e.printStackTrace();
-                }
+                soraUpdates();
 
 //                showLocation(location);
             }
         } else {
 //            String message = "Network������ɂȂ��Ă��܂��B";
 //            showMessage(message);
+        }
+    }
+
+    private void soraUpdates(){
+
+        try {
+            // 現在地の住所取得（都道府県名）
+            // Address.getAdminArea()にて都道府県名を取得できる
+            Geocoder geo = new Geocoder(this, Locale.JAPAN);
+            List<Address> address = geo.getFromLocation(mHome.latitude, mHome.longitude, 1);
+            String strPref = address.get(0).getAdminArea();
+
+            // 都道府県名にてそらまめより、測定局リストを取得する
+//                    if(!m_strCurrentPref.equalsIgnoreCase(strPref)) {
+            m_strCurrentPref = strPref;
+            new Pref().execute(strPref);
+//                    }
+        }
+        catch(IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -334,9 +379,13 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
 //            mStation = new LatLng(address.get(0).getLatitude(), address.get(0).getLongitude());
 
         mMap.setMyLocationEnabled(true);
+        mMap.setOnMarkerDragListener(this);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mHome, 11));
 
-        mMap.addMarker(new MarkerOptions().position(mHome).title("I'm Here!"));
+        mHomeMarker = mMap.addMarker(new MarkerOptions()
+                .position(mHome)
+                .draggable(true)
+                .title("I'm Here!"));
 //            mMap.addMarker(new MarkerOptions().position(mStation).title(m_strInfo));
 //        }
 //        catch (IOException e)
