@@ -527,6 +527,8 @@ public class MapsActivity extends FragmentActivity implements LocationListener{
                                 }
                                 return null;
                             }
+                            c.close();
+
                             mDb = mDbHelper.getWritableDatabase();
 
                             url = String.format("%s%s%d", SORABASEURL, SORAPREFURL, m_nPref);
