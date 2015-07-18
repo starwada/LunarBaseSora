@@ -67,8 +67,16 @@ public class Soramame {
             m_dDate = new Date(Integer.valueOf(strYear), Integer.valueOf(strMonth),
                     Integer.valueOf(strDay), Integer.valueOf(strHour), 0);
             // 未計測の場合、"-"が出力される。未計測の別パターンがあった。スペースで、コードを調べると（１２２８８）。
-            if( strValue.codePointAt(0) == 12288 || strValue.codePointAt(0) == 160 || strValue.equalsIgnoreCase("-") ){ m_nPM25 = -100 ; }
-            else{ m_nPM25 = Integer.valueOf(strValue); }
+//            if( strValue.codePointAt(0) == 12288 || strValue.codePointAt(0) == 160 || strValue.equalsIgnoreCase("-") ){ m_nPM25 = -100 ; }
+//            else{ m_nPM25 = Integer.valueOf(strValue); }
+
+            try{
+                m_nPM25 = Integer.parseInt(strValue);
+            }
+            catch(NumberFormatException e){
+                e.getMessage();
+                m_nPM25 = -100;
+            }
         }
 
         public Date getDate()
