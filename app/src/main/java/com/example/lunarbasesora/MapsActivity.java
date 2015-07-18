@@ -574,6 +574,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
                                         if( !c.moveToNext()){ break; }
                                     }
                                 }
+                                c.close();
                                 return null;
                             }
                             c.close();
@@ -660,6 +661,8 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
         @Override
         protected void onPostExecute(Void result)
         {
+            mList.clear();
+            mProgDialog.dismiss();
             if( mDb.isOpen()){ mDb.close(); }
 
             Iterator<Soramame> ite = mList.iterator();
@@ -689,8 +692,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
 //                mOverlay.clearTileCache();
 //            }
 
-            mList.clear();
-            mProgDialog.dismiss();
+
         }
 
         // 指定都道府県最新データ取得
