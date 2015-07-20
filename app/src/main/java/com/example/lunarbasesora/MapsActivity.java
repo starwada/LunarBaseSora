@@ -270,6 +270,10 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
         // ok create it
 //        DraggableCircle circle = new DraggableCircle(point, radiusLatLng);
 //        mCircles.add(circle);
+        mHome = null;
+        mHome = point;
+        mHomeMarker.setPosition(mHome);
+        soraUpdates();
     }
 
     private void requestLocationUpdates() {
@@ -380,6 +384,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
 
         mMap.setMyLocationEnabled(true);
         mMap.setOnMarkerDragListener(this);
+        mMap.setOnMapLongClickListener(this);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mHome, 11));
 
         mHomeMarker = mMap.addMarker(new MarkerOptions()
@@ -545,6 +550,11 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
                             m_nPref = Integer.parseInt(element.attr("value"));
                             // 測定日時の最新と都道府県が分かった時点で、測定局の最新データを読み込んでおく
                             // SORADATAHYOUURLにブロックID、日時、都道府県番号を設定して、URL実行。
+                            url = String.format("%sDataMap.php?BlockID=%02d", SORABASEURL, getBlockID(m_nPref));
+                            Document date = Jsoup.connect(url).get();
+                            Elements dates = date.getElementsByAttributeValue("name", "SaisinTime");
+                            m_strSaisin = dates.attr("value");
+
                             // frame name=Hyouでsrcを取得、そのURLで実行して、測定局のデータを取得
                             getAreaData(m_strSaisin, m_nPref);
 
@@ -575,9 +585,11 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
                                     }
                                 }
                                 c.close();
+                                mDb.close();
                                 return null;
                             }
                             c.close();
+                            mDb.close();
 
                             mDb = mDbHelper.getWritableDatabase();
 
@@ -661,8 +673,6 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
         @Override
         protected void onPostExecute(Void result)
         {
-            mList.clear();
-            mProgDialog.dismiss();
             if( mDb.isOpen()){ mDb.close(); }
 
             Iterator<Soramame> ite = mList.iterator();
@@ -691,7 +701,8 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
 //                mProvider.setWeightedData(aList);
 //                mOverlay.clearTileCache();
 //            }
-
+            mList.clear();
+            mProgDialog.dismiss();
 
         }
 
