@@ -532,15 +532,15 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
                 String url = String.format("%s%s", SORABASEURL, SORASUBURL);
                 Document doc = Jsoup.connect(url).get();
                 // 最新（日時）取得
-                Elements tags = doc.getElementsByTag("input");
-                for(Element ele: tags)
-                {
-                    if( ele.attr("name").equalsIgnoreCase("Saisin"))
-                    {
-                        m_strSaisin = ele.attr("value");
-                        break;
-                    }
-                }
+//                Elements tags = doc.getElementsByTag("input");
+//                for(Element ele: tags)
+//                {
+//                    if( ele.attr("name").equalsIgnoreCase("Saisin"))
+//                    {
+//                        m_strSaisin = ele.attr("value");
+//                        break;
+//                    }
+//                }
 
                 Elements elements = doc.getElementsByTag("option");
                 for( Element element : elements) {
@@ -586,6 +586,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
                                 }
                                 c.close();
                                 mDb.close();
+                                mStationList.clear();
                                 return null;
                             }
                             c.close();
@@ -652,6 +653,7 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
                                             }
                                         }
                                     }
+                                    mStationList.clear();
                                 }
                             }
                             break;
