@@ -23,6 +23,7 @@ import android.text.method.LinkMovementMethod;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
@@ -686,7 +687,15 @@ public class MapsActivity extends FragmentActivity implements LocationListener,
                  // 以下のコメントはヒートマップ用
                  //WeightedLatLng weight = new WeightedLatLng( sora.getPosition(), sora.getData(0).getPM25());
                  //aList.add(weight);
-                 mMap.addMarker(new MarkerOptions().position(sora.getPosition()).title(sora.getMstName()).snippet(sora.getDataString(0)));
+                 mMap.addMarker(new MarkerOptions()
+                         .position(sora.getPosition())
+                         .alpha(0.8f)
+//                         .flat(true)
+                         .title(sora.getMstName())
+                         .snippet(sora.getDataString(0))
+                         //.visible(false)
+                         .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
+                        //.icon(BitmapDescriptorFactory.defaultMarker(30.0f)));
                  mMap.addCircle(new CircleOptions()
                          .center(sora.getPosition())
                          .radius(sora.getData(0).getPM25Radius())
