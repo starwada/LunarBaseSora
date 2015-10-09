@@ -15,10 +15,8 @@ import android.location.LocationManager;
 import android.location.LocationListener;
 import android.location.LocationProvider;
 import android.os.AsyncTask;
-import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
-import android.graphics.Color;
-import android.text.method.LinkMovementMethod;
+import android.support.v7.app.AppCompatActivity;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -28,11 +26,6 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.TileOverlay;
-import com.google.android.gms.maps.model.TileOverlayOptions;
-import com.google.maps.android.heatmaps.Gradient;
-import com.google.maps.android.heatmaps.HeatmapTileProvider;
-import com.google.maps.android.heatmaps.WeightedLatLng;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -45,7 +38,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 
-public class MapsActivity extends FragmentActivity implements LocationListener,
+public class MapsActivity extends AppCompatActivity implements LocationListener,
         GoogleMap.OnMarkerDragListener, GoogleMap.OnMapLongClickListener {
     // そらまめメインURL
     private static final String SORABASEURL="http://soramame.taiki.go.jp/";
