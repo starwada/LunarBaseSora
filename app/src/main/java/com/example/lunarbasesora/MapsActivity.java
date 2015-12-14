@@ -744,6 +744,7 @@ public class MapsActivity extends AppCompatActivity implements LocationListener,
             }
         }
 
+        // 該当する測定局データを取得
         private void getStationData(Soramame mame)
         {
             float[] results = new float[1];
@@ -751,7 +752,11 @@ public class MapsActivity extends AppCompatActivity implements LocationListener,
             if( results[0] < 30000) {
                 Iterator<String> ite = mStationList.iterator();
                 while(ite.hasNext()){
-                    if(ite.next().equalsIgnoreCase(mame.getMstCode().toString())){
+                    // 測定局コードを内部では整数として保持しているが、文字列にて比較すると、
+                    // 測定局コードの先頭が０の地区があり、その場合正常に処理されないので、
+                    // 以下のように、整数にて判定する。
+//                    if(ite.next().equalsIgnoreCase(mame.getMstCode().toString())){
+                    if( Integer.valueOf(ite.next()).equals(mame.getMstCode())){
                         mame.setData(m_strSaisin, ite.next());
                         mList.add(mame);
                         break;
