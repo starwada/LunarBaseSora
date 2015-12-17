@@ -673,6 +673,8 @@ public class MapsActivity extends AppCompatActivity implements LocationListener,
 
             Iterator<Soramame> ite = mList.iterator();
             Soramame sora;
+            String msg ;
+            msg = String.format( "%.0f %.0f ", mMap.getMaxZoomLevel(), mMap.getMinZoomLevel()) ;
             // 以下のコメントはヒートマップ用
              //ArrayList<WeightedLatLng> aList = new ArrayList<WeightedLatLng>();
              while (ite.hasNext()) {
@@ -685,7 +687,7 @@ public class MapsActivity extends AppCompatActivity implements LocationListener,
                          .alpha(0.8f)
 //                         .flat(true)
                          .title(sora.getMstName())
-                         .snippet(sora.getDataString(0))
+                         .snippet(msg + sora.getDataString(0))
                          //.visible(false)
                          .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
                         //.icon(BitmapDescriptorFactory.defaultMarker(30.0f)));
