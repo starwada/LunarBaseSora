@@ -23,6 +23,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CircleOptions;
+import com.google.android.gms.maps.model.GroundOverlayOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -673,8 +674,8 @@ public class MapsActivity extends AppCompatActivity implements LocationListener,
 
             Iterator<Soramame> ite = mList.iterator();
             Soramame sora;
-            String msg ;
-            msg = String.format( "%.0f %.0f ", mMap.getMaxZoomLevel(), mMap.getMinZoomLevel()) ;
+//            String msg ;
+//            msg = String.format( "%.0f %.0f ", mMap.getMaxZoomLevel(), mMap.getMinZoomLevel()) ;
             // 以下のコメントはヒートマップ用
              //ArrayList<WeightedLatLng> aList = new ArrayList<WeightedLatLng>();
              while (ite.hasNext()) {
@@ -682,12 +683,18 @@ public class MapsActivity extends AppCompatActivity implements LocationListener,
                  // 以下のコメントはヒートマップ用
                  //WeightedLatLng weight = new WeightedLatLng( sora.getPosition(), sora.getData(0).getPM25());
                  //aList.add(weight);
+                 // 風向のアイコンを表示
+                 mMap.addGroundOverlay(new GroundOverlayOptions()
+                         .image(BitmapDescriptorFactory.fromResource(R.mipmap.ic_wd))
+                         .position(sora.getPosition(), 1000.0f)
+                         // 風向きに合わせて回転
+                         .bearing(sora.getData(0).getWDRotation()));
                  mMap.addMarker(new MarkerOptions()
                          .position(sora.getPosition())
                          .alpha(0.8f)
 //                         .flat(true)
                          .title(sora.getMstName())
-                         .snippet(msg + sora.getDataString(0))
+                         .snippet(sora.getDataString(0))
                          //.visible(false)
                          .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
                         //.icon(BitmapDescriptorFactory.defaultMarker(30.0f)));
@@ -734,7 +741,10 @@ public class MapsActivity extends AppCompatActivity implements LocationListener,
                         for( Element st : trs){
                             Elements tds = st.getElementsByTag("td");
                             mStationList.add(tds.get(0).text());        // 測定局コード
+                            mStationList.add(tds.get(8).text());        // OX
                             mStationList.add(tds.get(13).text());      // PM2.5
+                            mStationList.add(tds.get(15).text());       // 風向
+                            mStationList.add(tds.get(16).text());       // 風速
                         }
                         break;
                     }
@@ -759,10 +769,13 @@ public class MapsActivity extends AppCompatActivity implements LocationListener,
                     // 以下のように、整数にて判定する。
 //                    if(ite.next().equalsIgnoreCase(mame.getMstCode().toString())){
                     if( Integer.valueOf(ite.next()).equals(mame.getMstCode())){
-                        mame.setData(m_strSaisin, ite.next());
+                        mame.setData(m_strSaisin, ite.next(), ite.next(), ite.next(), ite.next());
                         mList.add(mame);
                         break;
                     }
+                    ite.next();
+                    ite.next();
+                    ite.next();
                     ite.next();
                 }
 //                // 該当測定局データを取得
@@ -820,7 +833,8 @@ public class MapsActivity extends AppCompatActivity implements LocationListener,
                         Elements trs = DataListHyou.getElementsByTag("tr");
                         Elements tds = trs.get(1).getElementsByTag("td");
 
-                        params[0].setData(tds.get(0).text(), tds.get(1).text(), tds.get(2).text(), tds.get(3).text(), tds.get(14).text());
+                        params[0].setData(tds.get(0).text(), tds.get(1).text(), tds.get(2).text(), tds.get(3).text(),
+                                tds.get(9).text(), tds.get(14).text(), tds.get(16).text(), tds.get(17).text() );
 
                         break;
                     }

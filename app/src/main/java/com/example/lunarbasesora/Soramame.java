@@ -230,7 +230,7 @@ public class Soramame implements Parcelable {
 
         public String Format()
         {
-            return String.format("%s:%s", getDateString(), getPM25String()) ;
+            return String.format("%s:%s %sm", getDateString(), getPM25String(), getWSString()) ;
         }
     }
 
@@ -299,17 +299,17 @@ public class Soramame implements Parcelable {
     public void setSaisin(String string){m_strSaisin = string;}
     public void setPosition(LatLng pos){ mPosition = pos; }
 
-    public void setData(String strDate, String strValue){
-        setData(strDate.substring(0, 4), strDate.substring(4,6), strDate.substring(6,8), strDate.substring(8,10), strValue);
+    public void setData(String strDate, String strOX, String strPM25, String strWD, String strWS ){
+        setData(strDate.substring(0, 4), strDate.substring(4,6), strDate.substring(6,8), strDate.substring(8,10), strOX, strPM25, strWD, strWS );
     }
-    public void setData(String strYear, String strMonth, String strDay, String strHour, String strValue)
-    {
-        SoramameData data = new SoramameData(strYear, strMonth, strDay, strHour, strValue);
-        if( m_aData == null){
-            m_aData = new ArrayList<SoramameData>();
-        }
-        m_aData.add(data);
-    }
+//    public void setData(String strYear, String strMonth, String strDay, String strHour, String strValue)
+   // {
+//        SoramameData data = new SoramameData(strYear, strMonth, strDay, strHour, strValue);
+//        if( m_aData == null){
+//            m_aData = new ArrayList<SoramameData>();
+//        }
+//        m_aData.add(data);
+//    }
     // Set
     public void setData(String strYear, String strMonth, String strDay, String strHour, String strOX, String strPM25, String strWD, String strWS)
     {
