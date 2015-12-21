@@ -684,11 +684,13 @@ public class MapsActivity extends AppCompatActivity implements LocationListener,
                  //WeightedLatLng weight = new WeightedLatLng( sora.getPosition(), sora.getData(0).getPM25());
                  //aList.add(weight);
                  // 風向のアイコンを表示
-                 mMap.addGroundOverlay(new GroundOverlayOptions()
-                         .image(BitmapDescriptorFactory.fromResource(R.mipmap.ic_wd))
-                         .position(sora.getPosition(), 1000.0f)
-                         // 風向きに合わせて回転
-                         .bearing(sora.getData(0).getWDRotation()));
+                 if( sora.getData(0).getWDRotation() > 0.0f ) {
+                     mMap.addGroundOverlay(new GroundOverlayOptions()
+                             .image(BitmapDescriptorFactory.fromResource(R.mipmap.ic_wd))
+                             .position(sora.getPosition(), 1000.0f)
+                                     // 風向きに合わせて回転
+                             .bearing(sora.getData(0).getWDRotation()));
+                 }
                  mMap.addMarker(new MarkerOptions()
                          .position(sora.getPosition())
                          .alpha(0.8f)
